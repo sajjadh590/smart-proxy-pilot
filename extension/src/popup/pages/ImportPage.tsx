@@ -1,0 +1,112 @@
+import { useRef, useState } from "react";
+import { Github, Clipboard, FileText, Link2, Upload } from "lucide-react";
+import { runImport, ImportSource } from "@/lib/import";
+import { upsertProxies } from "@/lib/storage";
+import { Proxy } from "@/lib/types";
+import { Button } from "../components/ui";
+
+export function ImportPage() {
+  const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Proxy[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function doImport(source: ImportSource) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await runImport(source);
+      if (res.parsed.length === 0) {
+        setMsg("No valid proxies found in source.");
+        setPreview([]);
+        return;
+      }
+      const added = await upsertProxies(res.parsed);
+      setPreview(res.parsed);
+      setMsg(`Parsed ${res.parsed.length} · added ${added} · ${res.parsed.length - added} duplicates skipped.`);
+    } catch (e) {
+      setMsg(`Error: ${String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      doImport({ kind: "file", value: String(reader.result), filename: file.name });
+    reader.readAsText(file);
+  }
+
+  const isGist = url.includes("gist.github.com") || url.includes("gist.githubusercontent.com");
+
+  return (
+    <div className="space-y-4">
+      <div className="pp-card space-y-2 p-3">
+        <div className="flex items-center gap-2 text-[11px] text-[--color-muted]">
+          {isGist ? <Github size={13} /> : <Link2 size={13} />} URL / GitHub Raw / Gist
+        </div>
+        <input
+          className="pp-input"
+          placeholder="https://raw.githubusercontent.com/…"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <Button
+          variant="primary"
+          className="w-full"
+          disabled={!url || busy}
+          onClick={() => doImport({ kind: isGist ? "gist" : "url", value: url })}
+        >
+          Fetch & Import
+        </Button>
+      </div>
+
+      <div className="pp-card space-y-2 p-3">
+        <div className="flex items-center gap-2 text-[11px] text-[--color-muted]">
+          <FileText size={13} /> Paste TXT / JSON / Subscription
+        </div>
+        <textarea
+          className="pp-input h-24 resize-none font-mono text-[11px]"
+          placeholder="vmess://…&#10;ss://…&#10;socks5://user:pass@host:port"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <Button className="flex-1" disabled={!text || busy} onClick={() => doImport({ kind: "text", value: text })}>
+            Import text
+          </Button>
+          <Button className="flex items-center gap-1" disabled={busy} onClick={() => doImport({ kind: "clipboard" })}>
+            <Clipboard size={12} /> Clipboard
+          </Button>
+        </div>
+      </div>
+
+      <div className="pp-card space-y-2 p-3">
+        <div className="flex items-center gap-2 text-[11px] text-[--color-muted]">
+          <Upload size={13} /> Local file (.txt / .json)
+        </div>
+        <input ref={fileRef} type="file" accept=".txt,.json,.conf" className="hidden" onChange={onFile} />
+        <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}>
+          Choose file
+        </Button>
+      </div>
+
+      {msg && <div className="pp-card p-3 text-[11px] text-[--color-fg]">{msg}</div>}
+
+      {preview.length > 0 && (
+        <div className="pp-card max-h-40 space-y-1 overflow-y-auto p-3 text-[10px] text-[--color-muted]">
+          {preview.slice(0, 30).map((p) => (
+            <div key={p.id} className="truncate">
+              <span className="text-[--color-primary]">{p.protocol}</span> {p.host}:{p.port}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
