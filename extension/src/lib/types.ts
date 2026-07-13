@@ -94,9 +94,27 @@ export interface Settings {
   theme: "dark";
 }
 
+/** A saved subscription link that yields proxies when fetched. */
+export interface Subscription {
+  id: string;
+  name: string;
+  url: string;
+  /** When true, the background worker refreshes on a schedule. */
+  autoUpdate: boolean;
+  /** Refresh interval in minutes (used only when autoUpdate is true). */
+  updateIntervalMin: number;
+  createdAt: number;
+  lastUpdatedAt?: number;
+  /** Number of proxies produced by the last successful refresh. */
+  lastCount?: number;
+  /** Error string from the last failed refresh, if any. */
+  lastError?: string;
+}
+
 export interface AppState {
   proxies: Proxy[];
   rules: DomainRule[];
+  subscriptions: Subscription[];
   settings: Settings;
   activeProxyId: string | null;
 }
@@ -114,6 +132,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export const DEFAULT_STATE: AppState = {
   proxies: [],
   rules: [],
+  subscriptions: [],
   settings: DEFAULT_SETTINGS,
   activeProxyId: null,
 };
