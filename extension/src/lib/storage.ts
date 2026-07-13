@@ -104,3 +104,100 @@ export async function saveSettings(patch: Partial<Settings>): Promise<void> {
     s.settings = { ...s.settings, ...patch };
   });
 }
+
+// ---- Subscriptions -------------------------------------------------------
+
+/** Stable source label used to tag proxies that came from a subscription. */
+export function subSource(subId: string): string {
+  return `sub:${subId}`;
+}
+
+export async function addSubscription(sub: Subscription): Promise<void> {
+  await mutate((s) => {
+    if (!s.subscriptions) s.subscriptions = [];
+    s.subscriptions.push(sub);
+  });
+}
+
+export async function updateSubscription(
+  id: string,
+  patch: Partial<Subscription>,
+): Promise<void> {
+  await mutate((s) => {
+    const sub = s.subscriptions?.find((x) => x.id === id);
+    if (sub) Object.assign(sub, patch);
+  });
+}
+
+export async function removeSubscription(
+  id: string,
+  purgeProxies = true,
+): Promise<void> {
+  await mutate((s) => {
+    s.subscriptions = (s.subscriptions ?? []).filter((x) => x.id !== id);
+    if (purgeProxies) {
+      const src = subSource(id);
+      s.proxies = s.proxies.filter(
+        (p) => p.source !== src || p.id === s.activeProxyId,
+      );
+    }
+  });
+}
+
+/**
+ * Replace the proxy set belonging to a subscription with a freshly fetched
+ * list. Existing entries (matched by dedupe key) keep their benchmark history,
+ * new ones are added, and stale ones are removed — except the active proxy,
+ * which is always preserved so a refresh never drops the live connection.
+ */
+export async function syncSubscriptionProxies(
+  subId: string,
+  incoming: Proxy[],
+): Promise<{ added: number; removed: number; total: number }> {
+  const src = subSource(subId);
+  let added = 0;
+  let removed = 0;
+  let total = 0;
+
+  await mutate((s) => {
+    const existing = s.proxies.filter((p) => p.source === src);
+    const others = s.proxies.filter((p) => p.source !== src);
+    const byKey = new Map(existing.map((p) => [dedupeKey(p), p]));
+    const incomingKeys = new Set<string>();
+    const kept: Proxy[] = [];
+
+    for (const inc of incoming) {
+      inc.source = src;
+      const key = dedupeKey(inc);
+      if (incomingKeys.has(key)) continue; // de-dup within the feed
+      incomingKeys.add(key);
+      const prev = byKey.get(key);
+      if (prev) {
+        // Preserve history/health, refresh mutable fields.
+        prev.name = inc.name;
+        prev.raw = inc.raw;
+        prev.protocol = inc.protocol;
+        prev.host = inc.host;
+        prev.port = inc.port;
+        prev.auth = inc.auth;
+        kept.push(prev);
+      } else {
+        kept.push(inc);
+        added++;
+      }
+    }
+
+    // Preserve the active proxy even if it's no longer in the feed.
+    for (const p of existing) {
+      if (!incomingKeys.has(dedupeKey(p))) {
+        if (p.id === s.activeProxyId) kept.push(p);
+        else removed++;
+      }
+    }
+
+    s.proxies = [...others, ...kept];
+    total = kept.length;
+  });
+
+  return { added, removed, total };
+}
