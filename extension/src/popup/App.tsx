@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Server,
   Download,
+  Rss,
   Gauge,
   Route,
   Settings as SettingsIcon,
@@ -11,16 +12,25 @@ import { useAppState } from "./useAppState";
 import { Dashboard } from "./pages/Dashboard";
 import { Proxies } from "./pages/Proxies";
 import { ImportPage } from "./pages/ImportPage";
+import { Subscriptions } from "./pages/Subscriptions";
 import { Benchmark } from "./pages/Benchmark";
 import { Routing } from "./pages/Routing";
 import { SettingsPage } from "./pages/SettingsPage";
 
-type Tab = "dashboard" | "proxies" | "import" | "benchmark" | "routing" | "settings";
+type Tab =
+  | "dashboard"
+  | "proxies"
+  | "import"
+  | "subs"
+  | "benchmark"
+  | "routing"
+  | "settings";
 
 const TABS: { id: Tab; label: string; icon: typeof Server }[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard },
   { id: "proxies", label: "Proxies", icon: Server },
   { id: "import", label: "Import", icon: Download },
+  { id: "subs", label: "Subs", icon: Rss },
   { id: "benchmark", label: "Test", icon: Gauge },
   { id: "routing", label: "Routes", icon: Route },
   { id: "settings", label: "Settings", icon: SettingsIcon },
@@ -50,6 +60,7 @@ export default function App() {
             {tab === "dashboard" && <Dashboard state={state} />}
             {tab === "proxies" && <Proxies state={state} />}
             {tab === "import" && <ImportPage />}
+            {tab === "subs" && <Subscriptions state={state} />}
             {tab === "benchmark" && <Benchmark state={state} />}
             {tab === "routing" && <Routing state={state} />}
             {tab === "settings" && <SettingsPage state={state} />}
@@ -57,7 +68,7 @@ export default function App() {
         )}
       </main>
 
-      <nav className="grid grid-cols-6 border-t border-[--color-border]">
+      <nav className="grid grid-cols-7 border-t border-[--color-border]">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}

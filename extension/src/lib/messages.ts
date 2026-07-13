@@ -12,6 +12,9 @@ export type UiToBg =
   | { type: "RETEST_FAILED" }
   | { type: "AUTO_SELECT_BEST" }
   | { type: "REFRESH_CONFIG" }
+  | { type: "REFRESH_SUBSCRIPTION"; subId: string }
+  | { type: "REFRESH_ALL_SUBSCRIPTIONS" }
+  | { type: "SYNC_SUB_ALARMS" }
   | { type: "ENGINE_PING" };
 
 export interface BgResult {
@@ -21,6 +24,9 @@ export interface BgResult {
   engineVersion?: string;
   engineRunning?: boolean;
   tested?: number;
+  added?: number;
+  removed?: number;
+  total?: number;
 }
 
 export function sendToBackground(msg: UiToBg): Promise<BgResult> {

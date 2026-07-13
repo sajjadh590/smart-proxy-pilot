@@ -1,6 +1,13 @@
 import { AppState, Proxy } from "@/lib/types";
-import { loadState, setActiveProxy, updateProxy } from "@/lib/storage";
+import {
+  loadState,
+  setActiveProxy,
+  updateProxy,
+  updateSubscription,
+  syncSubscriptionProxies,
+} from "@/lib/storage";
 import { UiToBg, BgResult } from "@/lib/messages";
+import { runImport } from "@/lib/import";
 import { buildConfig } from "@/lib/proxy-config";
 import { probeProxy, recordSample, bestProxy, rankProxies } from "@/lib/benchmark";
 import {
@@ -16,6 +23,8 @@ import {
 
 const HEALTH_ALARM = "proxypilot:health";
 const HEALTH_PERIOD_MIN = 3;
+const SUB_ALARM = "proxypilot:subscriptions";
+const SUB_CHECK_PERIOD_MIN = 5;
 
 // ---- Proxy activation ----------------------------------------------------
 
@@ -121,7 +130,66 @@ async function autoSelectBest(): Promise<BgResult> {
   return activate(best.id);
 }
 
-// ---- Auto-switch / health loop ------------------------------------------
+// ---- Subscriptions -------------------------------------------------------
+
+async function refreshSubscription(subId: string): Promise<BgResult> {
+  const state = await loadState();
+  const sub = state.subscriptions?.find((s) => s.id === subId);
+  if (!sub) return { ok: false, error: "Subscription not found" };
+  try {
+    const res = await runImport({ kind: "url", value: sub.url });
+    if (res.parsed.length === 0) {
+      await updateSubscription(subId, {
+        lastUpdatedAt: Date.now(),
+        lastError: "No proxies found",
+      });
+      return { ok: false, error: "No proxies found" };
+    }
+    const stats = await syncSubscriptionProxies(subId, res.parsed);
+    await updateSubscription(subId, {
+      lastUpdatedAt: Date.now(),
+      lastCount: stats.total,
+      lastError: undefined,
+    });
+    return { ok: true, ...stats };
+  } catch (e) {
+    await updateSubscription(subId, {
+      lastUpdatedAt: Date.now(),
+      lastError: String(e),
+    });
+    return { ok: false, error: String(e) };
+  }
+}
+
+async function refreshAllSubscriptions(): Promise<BgResult> {
+  const state = await loadState();
+  const subs = state.subscriptions ?? [];
+  let added = 0;
+  let removed = 0;
+  let total = 0;
+  for (const sub of subs) {
+    const r = await refreshSubscription(sub.id);
+    added += r.added ?? 0;
+    removed += r.removed ?? 0;
+    total += r.total ?? 0;
+  }
+  return { ok: true, added, removed, total };
+}
+
+/** Refresh only subscriptions whose auto-update interval has elapsed. */
+async function subscriptionTick(): Promise<void> {
+  const state = await loadState();
+  const now = Date.now();
+  for (const sub of state.subscriptions ?? []) {
+    if (!sub.autoUpdate) continue;
+    const dueAfter = (sub.lastUpdatedAt ?? 0) + sub.updateIntervalMin * 60_000;
+    if (now >= dueAfter) {
+      await refreshSubscription(sub.id);
+    }
+  }
+}
+
+
 
 async function healthTick(): Promise<void> {
   const state = await loadState();
@@ -194,6 +262,16 @@ chrome.runtime.onMessage.addListener((msg: UiToBg, _sender, sendResponse) => {
         sendResponse({ ok: true, activeProxy: active ?? null });
         break;
       }
+      case "REFRESH_SUBSCRIPTION":
+        sendResponse(await refreshSubscription(msg.subId));
+        break;
+      case "REFRESH_ALL_SUBSCRIPTIONS":
+        sendResponse(await refreshAllSubscriptions());
+        break;
+      case "SYNC_SUB_ALARMS":
+        await subscriptionTick();
+        sendResponse({ ok: true });
+        break;
       case "ENGINE_PING": {
         const res = await pingEngine();
         sendResponse({
@@ -214,9 +292,11 @@ chrome.runtime.onMessage.addListener((msg: UiToBg, _sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.action.setBadgeText({ text: "" });
   chrome.alarms.create(HEALTH_ALARM, { periodInMinutes: HEALTH_PERIOD_MIN });
+  chrome.alarms.create(SUB_ALARM, { periodInMinutes: SUB_CHECK_PERIOD_MIN });
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  chrome.alarms.create(SUB_ALARM, { periodInMinutes: SUB_CHECK_PERIOD_MIN });
   const state = await loadState();
   if (state.activeProxyId) {
     const p = state.proxies.find((x) => x.id === state.activeProxyId);
@@ -226,6 +306,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HEALTH_ALARM) void healthTick();
+  if (alarm.name === SUB_ALARM) void subscriptionTick();
 });
 
 // React to Chrome-level proxy errors as an additional failover trigger.
