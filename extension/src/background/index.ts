@@ -1,6 +1,13 @@
 import { AppState, Proxy } from "@/lib/types";
-import { loadState, setActiveProxy, updateProxy } from "@/lib/storage";
+import {
+  loadState,
+  setActiveProxy,
+  updateProxy,
+  updateSubscription,
+  syncSubscriptionProxies,
+} from "@/lib/storage";
 import { UiToBg, BgResult } from "@/lib/messages";
+import { runImport } from "@/lib/import";
 import { buildConfig } from "@/lib/proxy-config";
 import { probeProxy, recordSample, bestProxy, rankProxies } from "@/lib/benchmark";
 import {
