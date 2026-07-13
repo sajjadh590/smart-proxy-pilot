@@ -23,6 +23,8 @@ import {
 
 const HEALTH_ALARM = "proxypilot:health";
 const HEALTH_PERIOD_MIN = 3;
+const SUB_ALARM = "proxypilot:subscriptions";
+const SUB_CHECK_PERIOD_MIN = 5;
 
 // ---- Proxy activation ----------------------------------------------------
 
