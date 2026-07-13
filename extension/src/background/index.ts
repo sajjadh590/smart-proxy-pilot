@@ -292,9 +292,11 @@ chrome.runtime.onMessage.addListener((msg: UiToBg, _sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.action.setBadgeText({ text: "" });
   chrome.alarms.create(HEALTH_ALARM, { periodInMinutes: HEALTH_PERIOD_MIN });
+  chrome.alarms.create(SUB_ALARM, { periodInMinutes: SUB_CHECK_PERIOD_MIN });
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  chrome.alarms.create(SUB_ALARM, { periodInMinutes: SUB_CHECK_PERIOD_MIN });
   const state = await loadState();
   if (state.activeProxyId) {
     const p = state.proxies.find((x) => x.id === state.activeProxyId);
@@ -304,6 +306,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HEALTH_ALARM) void healthTick();
+  if (alarm.name === SUB_ALARM) void subscriptionTick();
 });
 
 // React to Chrome-level proxy errors as an additional failover trigger.
