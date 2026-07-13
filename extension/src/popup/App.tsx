@@ -68,7 +68,7 @@ export default function App() {
         )}
       </main>
 
-      <nav className="grid grid-cols-6 border-t border-[--color-border]">
+      <nav className="grid grid-cols-7 border-t border-[--color-border]">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
