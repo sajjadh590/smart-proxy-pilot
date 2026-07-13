@@ -130,7 +130,66 @@ async function autoSelectBest(): Promise<BgResult> {
   return activate(best.id);
 }
 
-// ---- Auto-switch / health loop ------------------------------------------
+// ---- Subscriptions -------------------------------------------------------
+
+async function refreshSubscription(subId: string): Promise<BgResult> {
+  const state = await loadState();
+  const sub = state.subscriptions?.find((s) => s.id === subId);
+  if (!sub) return { ok: false, error: "Subscription not found" };
+  try {
+    const res = await runImport({ kind: "url", value: sub.url });
+    if (res.parsed.length === 0) {
+      await updateSubscription(subId, {
+        lastUpdatedAt: Date.now(),
+        lastError: "No proxies found",
+      });
+      return { ok: false, error: "No proxies found" };
+    }
+    const stats = await syncSubscriptionProxies(subId, res.parsed);
+    await updateSubscription(subId, {
+      lastUpdatedAt: Date.now(),
+      lastCount: stats.total,
+      lastError: undefined,
+    });
+    return { ok: true, ...stats };
+  } catch (e) {
+    await updateSubscription(subId, {
+      lastUpdatedAt: Date.now(),
+      lastError: String(e),
+    });
+    return { ok: false, error: String(e) };
+  }
+}
+
+async function refreshAllSubscriptions(): Promise<BgResult> {
+  const state = await loadState();
+  const subs = state.subscriptions ?? [];
+  let added = 0;
+  let removed = 0;
+  let total = 0;
+  for (const sub of subs) {
+    const r = await refreshSubscription(sub.id);
+    added += r.added ?? 0;
+    removed += r.removed ?? 0;
+    total += r.total ?? 0;
+  }
+  return { ok: true, added, removed, total };
+}
+
+/** Refresh only subscriptions whose auto-update interval has elapsed. */
+async function subscriptionTick(): Promise<void> {
+  const state = await loadState();
+  const now = Date.now();
+  for (const sub of state.subscriptions ?? []) {
+    if (!sub.autoUpdate) continue;
+    const dueAfter = (sub.lastUpdatedAt ?? 0) + sub.updateIntervalMin * 60_000;
+    if (now >= dueAfter) {
+      await refreshSubscription(sub.id);
+    }
+  }
+}
+
+
 
 async function healthTick(): Promise<void> {
   const state = await loadState();
