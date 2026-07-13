@@ -262,6 +262,16 @@ chrome.runtime.onMessage.addListener((msg: UiToBg, _sender, sendResponse) => {
         sendResponse({ ok: true, activeProxy: active ?? null });
         break;
       }
+      case "REFRESH_SUBSCRIPTION":
+        sendResponse(await refreshSubscription(msg.subId));
+        break;
+      case "REFRESH_ALL_SUBSCRIPTIONS":
+        sendResponse(await refreshAllSubscriptions());
+        break;
+      case "SYNC_SUB_ALARMS":
+        await subscriptionTick();
+        sendResponse({ ok: true });
+        break;
       case "ENGINE_PING": {
         const res = await pingEngine();
         sendResponse({
