@@ -1,4 +1,4 @@
-import { AppState, DEFAULT_STATE, Proxy, DomainRule, Settings } from "./types";
+import { AppState, DEFAULT_STATE, Proxy, DomainRule, Settings, Subscription } from "./types";
 
 // Thin, typed wrapper over chrome.storage.local.
 // Everything ProxyPilot persists lives locally — no cloud, no telemetry.
