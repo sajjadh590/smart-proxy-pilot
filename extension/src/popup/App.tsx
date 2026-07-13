@@ -60,6 +60,7 @@ export default function App() {
             {tab === "dashboard" && <Dashboard state={state} />}
             {tab === "proxies" && <Proxies state={state} />}
             {tab === "import" && <ImportPage />}
+            {tab === "subs" && <Subscriptions state={state} />}
             {tab === "benchmark" && <Benchmark state={state} />}
             {tab === "routing" && <Routing state={state} />}
             {tab === "settings" && <SettingsPage state={state} />}
