@@ -163,6 +163,9 @@ export async function syncSubscriptionProxies(
     const existing = s.proxies.filter((p) => p.source === src);
     const others = s.proxies.filter((p) => p.source !== src);
     const byKey = new Map(existing.map((p) => [dedupeKey(p), p]));
+    // Also index proxies from other sources so we never introduce a
+    // cross-source duplicate on refresh.
+    const otherKeys = new Set(others.map(dedupeKey));
     const incomingKeys = new Set<string>();
     const kept: Proxy[] = [];
 
@@ -170,10 +173,14 @@ export async function syncSubscriptionProxies(
       inc.source = src;
       const key = dedupeKey(inc);
       if (incomingKeys.has(key)) continue; // de-dup within the feed
+      if (otherKeys.has(key)) {
+        // Already exists elsewhere (manual import, other sub); skip.
+        incomingKeys.add(key);
+        continue;
+      }
       incomingKeys.add(key);
       const prev = byKey.get(key);
       if (prev) {
-        // Preserve history/health, refresh mutable fields.
         prev.name = inc.name;
         prev.raw = inc.raw;
         prev.protocol = inc.protocol;
@@ -187,7 +194,6 @@ export async function syncSubscriptionProxies(
       }
     }
 
-    // Preserve the active proxy even if it's no longer in the feed.
     for (const p of existing) {
       if (!incomingKeys.has(dedupeKey(p))) {
         if (p.id === s.activeProxyId) kept.push(p);
@@ -200,4 +206,24 @@ export async function syncSubscriptionProxies(
   });
 
   return { added, removed, total };
+}
+
+/** One-shot pass to remove any duplicate proxies in storage (keeps first). */
+export async function dedupeAllProxies(): Promise<number> {
+  let removed = 0;
+  await mutate((s) => {
+    const seen = new Set<string>();
+    const kept: Proxy[] = [];
+    for (const p of s.proxies) {
+      const key = dedupeKey(p);
+      if (seen.has(key) && p.id !== s.activeProxyId) {
+        removed++;
+        continue;
+      }
+      seen.add(key);
+      kept.push(p);
+    }
+    s.proxies = kept;
+  });
+  return removed;
 }
