@@ -43,7 +43,7 @@ async function applyProxy(state: AppState, proxy: Proxy): Promise<void> {
 async function clearProxy(): Promise<void> {
   await chrome.proxy.settings.clear({ scope: "regular" });
   await stopTunnel().catch(() => void 0);
-  await chrome.action.setBadgeText({ text: "" });
+  await setBadge(null);
 }
 
 async function setBadge(proxy: Proxy | null): Promise<void> {
