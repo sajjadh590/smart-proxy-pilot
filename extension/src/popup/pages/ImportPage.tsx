@@ -1,9 +1,24 @@
 import { useRef, useState } from "react";
-import { Github, Clipboard, FileText, Link2, Upload } from "lucide-react";
+import { Github, Clipboard, FileText, Link2, Upload, Plus } from "lucide-react";
 import { runImport, ImportSource } from "@/lib/import";
 import { upsertProxies } from "@/lib/storage";
-import { Proxy } from "@/lib/types";
+import { uid } from "@/lib/parsers";
+import { Protocol, Proxy } from "@/lib/types";
 import { Button } from "../components/ui";
+
+const PROTOCOLS: Protocol[] = [
+  "socks5",
+  "http",
+  "https",
+  "vmess",
+  "vless",
+  "trojan",
+  "shadowsocks",
+  "shadowsocksr",
+  "hysteria",
+  "hysteria2",
+  "tuic",
+];
 
 export function ImportPage() {
   const [url, setUrl] = useState("");
@@ -11,6 +26,14 @@ export function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<Proxy[]>([]);
+
+  // Manual proxy form state.
+  const [mProto, setMProto] = useState<Protocol>("socks5");
+  const [mHost, setMHost] = useState("");
+  const [mPort, setMPort] = useState("");
+  const [mUser, setMUser] = useState("");
+  const [mPass, setMPass] = useState("");
+  const [mName, setMName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function doImport(source: ImportSource) {
