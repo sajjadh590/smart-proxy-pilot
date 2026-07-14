@@ -150,6 +150,67 @@ export function ImportPage() {
         </Button>
       </div>
 
+      <div className="pp-card space-y-2 p-3">
+        <div className="flex items-center gap-2 text-[11px] text-[--color-muted]">
+          <Plus size={13} /> Add a single proxy manually
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <select
+            className="pp-input col-span-1"
+            value={mProto}
+            onChange={(e) => setMProto(e.target.value as Protocol)}
+          >
+            {PROTOCOLS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <input
+            className="pp-input col-span-2"
+            placeholder="host"
+            value={mHost}
+            onChange={(e) => setMHost(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            className="pp-input"
+            placeholder="port"
+            inputMode="numeric"
+            value={mPort}
+            onChange={(e) => setMPort(e.target.value)}
+          />
+          <input
+            className="pp-input"
+            placeholder="label (optional)"
+            value={mName}
+            onChange={(e) => setMName(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            className="pp-input"
+            placeholder="username (optional)"
+            value={mUser}
+            onChange={(e) => setMUser(e.target.value)}
+          />
+          <input
+            className="pp-input"
+            placeholder="password (optional)"
+            type="password"
+            value={mPass}
+            onChange={(e) => setMPass(e.target.value)}
+          />
+        </div>
+        <Button
+          variant="primary"
+          className="w-full flex items-center justify-center gap-1"
+          disabled={busy || !mHost || !mPort}
+          onClick={addManualProxy}
+        >
+          <Plus size={13} /> Add proxy
+        </Button>
+      </div>
+
       {msg && <div className="pp-card p-3 text-[11px] text-[--color-fg]">{msg}</div>}
 
       {preview.length > 0 && (
