@@ -1,9 +1,24 @@
 import { useRef, useState } from "react";
-import { Github, Clipboard, FileText, Link2, Upload } from "lucide-react";
+import { Github, Clipboard, FileText, Link2, Upload, Plus } from "lucide-react";
 import { runImport, ImportSource } from "@/lib/import";
 import { upsertProxies } from "@/lib/storage";
-import { Proxy } from "@/lib/types";
+import { uid } from "@/lib/parsers";
+import { Protocol, Proxy } from "@/lib/types";
 import { Button } from "../components/ui";
+
+const PROTOCOLS: Protocol[] = [
+  "socks5",
+  "http",
+  "https",
+  "vmess",
+  "vless",
+  "trojan",
+  "shadowsocks",
+  "shadowsocksr",
+  "hysteria",
+  "hysteria2",
+  "tuic",
+];
 
 export function ImportPage() {
   const [url, setUrl] = useState("");
@@ -11,6 +26,14 @@ export function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<Proxy[]>([]);
+
+  // Manual proxy form state.
+  const [mProto, setMProto] = useState<Protocol>("socks5");
+  const [mHost, setMHost] = useState("");
+  const [mPort, setMPort] = useState("");
+  const [mUser, setMUser] = useState("");
+  const [mPass, setMPass] = useState("");
+  const [mName, setMName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function doImport(source: ImportSource) {
@@ -40,6 +63,37 @@ export function ImportPage() {
     reader.onload = () =>
       doImport({ kind: "file", value: String(reader.result), filename: file.name });
     reader.readAsText(file);
+  }
+
+  async function addManualProxy() {
+    if (!mHost.trim() || !mPort.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const proxy: Proxy = {
+        id: uid(),
+        name: mName.trim() || `${mProto}-${mHost.trim()}`,
+        protocol: mProto,
+        host: mHost.trim(),
+        port: Number(mPort),
+        auth: mUser || mPass ? { username: mUser || undefined, password: mPass || undefined } : undefined,
+        tags: [],
+        favorite: false,
+        status: "unknown",
+        latency: null,
+        healthScore: 0,
+        source: "manual",
+        createdAt: Date.now(),
+        history: [],
+      };
+      const added = await upsertProxies([proxy]);
+      setMsg(added ? `Added ${mProto}://${mHost}:${mPort}.` : "Duplicate — proxy already exists.");
+      if (added) {
+        setMHost(""); setMPort(""); setMUser(""); setMPass(""); setMName("");
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   const isGist = url.includes("gist.github.com") || url.includes("gist.githubusercontent.com");
@@ -93,6 +147,67 @@ export function ImportPage() {
         <input ref={fileRef} type="file" accept=".txt,.json,.conf" className="hidden" onChange={onFile} />
         <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}>
           Choose file
+        </Button>
+      </div>
+
+      <div className="pp-card space-y-2 p-3">
+        <div className="flex items-center gap-2 text-[11px] text-[--color-muted]">
+          <Plus size={13} /> Add a single proxy manually
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <select
+            className="pp-input col-span-1"
+            value={mProto}
+            onChange={(e) => setMProto(e.target.value as Protocol)}
+          >
+            {PROTOCOLS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <input
+            className="pp-input col-span-2"
+            placeholder="host"
+            value={mHost}
+            onChange={(e) => setMHost(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            className="pp-input"
+            placeholder="port"
+            inputMode="numeric"
+            value={mPort}
+            onChange={(e) => setMPort(e.target.value)}
+          />
+          <input
+            className="pp-input"
+            placeholder="label (optional)"
+            value={mName}
+            onChange={(e) => setMName(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            className="pp-input"
+            placeholder="username (optional)"
+            value={mUser}
+            onChange={(e) => setMUser(e.target.value)}
+          />
+          <input
+            className="pp-input"
+            placeholder="password (optional)"
+            type="password"
+            value={mPass}
+            onChange={(e) => setMPass(e.target.value)}
+          />
+        </div>
+        <Button
+          variant="primary"
+          className="w-full flex items-center justify-center gap-1"
+          disabled={busy || !mHost || !mPort}
+          onClick={addManualProxy}
+        >
+          <Plus size={13} /> Add proxy
         </Button>
       </div>
 

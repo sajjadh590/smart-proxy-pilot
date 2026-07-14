@@ -10,17 +10,17 @@ export default defineManifest({
   description:
     "Intelligently discover, benchmark, rank and switch between multi-protocol proxy servers.",
   icons: {
-    16: "icons/icon16.png",
-    48: "icons/icon48.png",
-    128: "icons/icon128.png",
+    16: "icons/icon16-off.png",
+    48: "icons/icon48-off.png",
+    128: "icons/icon128-off.png",
   },
   action: {
     default_popup: "index.html",
     default_title: "ProxyPilot",
     default_icon: {
-      16: "icons/icon16.png",
-      48: "icons/icon48.png",
-      128: "icons/icon128.png",
+      16: "icons/icon16-off.png",
+      48: "icons/icon48-off.png",
+      128: "icons/icon128-off.png",
     },
   },
   background: {

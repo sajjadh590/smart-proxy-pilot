@@ -43,18 +43,32 @@ async function applyProxy(state: AppState, proxy: Proxy): Promise<void> {
 async function clearProxy(): Promise<void> {
   await chrome.proxy.settings.clear({ scope: "regular" });
   await stopTunnel().catch(() => void 0);
-  await chrome.action.setBadgeText({ text: "" });
+  await setBadge(null);
 }
 
 async function setBadge(proxy: Proxy | null): Promise<void> {
   if (!proxy) {
     await chrome.action.setBadgeText({ text: "" });
+    await chrome.action.setIcon({
+      path: {
+        16: "icons/icon16-off.png",
+        48: "icons/icon48-off.png",
+        128: "icons/icon128-off.png",
+      },
+    });
     return;
   }
   const color =
     proxy.healthScore >= 70 ? "#3fd68a" : proxy.healthScore >= 40 ? "#f6c453" : "#ff6b6b";
   await chrome.action.setBadgeBackgroundColor({ color });
   await chrome.action.setBadgeText({ text: "ON" });
+  await chrome.action.setIcon({
+    path: {
+      16: "icons/icon16.png",
+      48: "icons/icon48.png",
+      128: "icons/icon128.png",
+    },
+  });
 }
 
 async function activate(proxyId: string): Promise<BgResult> {
@@ -289,8 +303,8 @@ chrome.runtime.onMessage.addListener((msg: UiToBg, _sender, sendResponse) => {
   return true; // async response
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.action.setBadgeText({ text: "" });
+chrome.runtime.onInstalled.addListener(async () => {
+  await setBadge(null);
   chrome.alarms.create(HEALTH_ALARM, { periodInMinutes: HEALTH_PERIOD_MIN });
   chrome.alarms.create(SUB_ALARM, { periodInMinutes: SUB_CHECK_PERIOD_MIN });
 });
@@ -301,6 +315,9 @@ chrome.runtime.onStartup.addListener(async () => {
   if (state.activeProxyId) {
     const p = state.proxies.find((x) => x.id === state.activeProxyId);
     if (p) await applyProxy(state, p).catch(() => void 0);
+    else await setBadge(null);
+  } else {
+    await setBadge(null);
   }
 });
 

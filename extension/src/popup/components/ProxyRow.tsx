@@ -6,7 +6,10 @@ import { HealthBar, StatusDot, Chip } from "./ui";
 
 // One row in the proxy manager list.
 export function ProxyRow({ proxy, active }: { proxy: Proxy; active: boolean }) {
-  const activate = () => sendToBackground({ type: "ACTIVATE", proxyId: proxy.id });
+  const activate = async () => {
+    const r = await sendToBackground({ type: "ACTIVATE", proxyId: proxy.id });
+    if (!r.ok) alert(`Could not connect: ${r.error ?? "unknown error"}`);
+  };
   const test = () => sendToBackground({ type: "BENCHMARK_ONE", proxyId: proxy.id });
 
   return (
