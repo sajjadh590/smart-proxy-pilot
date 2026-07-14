@@ -56,8 +56,8 @@ The engine bridges advanced protocols using a proven core. Download one and
 place it here (or point `PROXYPILOT_CORE` at it):
 
 ```text
-engine/core/xray        (or xray.exe on Windows)
-engine/core/sing-box    (recommended for Hysteria/Hysteria2/TUIC)
+engine/core/sing-box     (default — sing-box.exe on Windows)
+engine/core/xray         (fallback — xray.exe on Windows)
 ```
 
 - Xray-core: https://github.com/XTLS/Xray-core/releases
