@@ -65,6 +65,37 @@ export function ImportPage() {
     reader.readAsText(file);
   }
 
+  async function addManualProxy() {
+    if (!mHost.trim() || !mPort.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const proxy: Proxy = {
+        id: uid(),
+        name: mName.trim() || `${mProto}-${mHost.trim()}`,
+        protocol: mProto,
+        host: mHost.trim(),
+        port: Number(mPort),
+        auth: mUser || mPass ? { username: mUser || undefined, password: mPass || undefined } : undefined,
+        tags: [],
+        favorite: false,
+        status: "unknown",
+        latency: null,
+        healthScore: 0,
+        source: "manual",
+        createdAt: Date.now(),
+        history: [],
+      };
+      const added = await upsertProxies([proxy]);
+      setMsg(added ? `Added ${mProto}://${mHost}:${mPort}.` : "Duplicate — proxy already exists.");
+      if (added) {
+        setMHost(""); setMPort(""); setMUser(""); setMPass(""); setMName("");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const isGist = url.includes("gist.github.com") || url.includes("gist.githubusercontent.com");
 
   return (
