@@ -78,27 +78,41 @@ async function startCore(proxy, localPort) {
   const corePath = resolveCorePath();
   if (!corePath) {
     throw new Error(
-      "Core binary not found. Place xray (or sing-box) next to the engine or set PROXYPILOT_CORE.",
+      "Core binary not found. Place sing-box (or xray) in engine/core/ or set PROXYPILOT_CORE.",
     );
   }
-  const config = buildCoreConfig(proxy, localPort);
+  const config = buildCoreConfig(proxy, localPort, corePath);
   const dir = mkdtempSync(join(tmpdir(), "proxypilot-"));
   const configPath = join(dir, "config.json");
   writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-  const args = corePath.includes("sing-box")
-    ? ["run", "-c", configPath]
-    : ["-c", configPath];
+  const args = coreArgs(corePath, configPath);
 
-  state.core = spawn(corePath, args, { stdio: "ignore" });
-  state.core.on("exit", () => {
+  // Capture stderr so a bad config surfaces as a real error rather than a
+  // silent timeout.
+  let stderrTail = "";
+  state.core = spawn(corePath, args, { stdio: ["ignore", "ignore", "pipe"] });
+  state.core.stderr?.on("data", (d) => {
+    stderrTail = (stderrTail + d.toString()).slice(-2000);
+  });
+  state.core.on("exit", (code) => {
     if (state.core) state.core = null;
+    if (code && code !== 0) {
+      // eslint-disable-next-line no-console
+      process.stderr.write(`[proxypilot] core exited ${code}: ${stderrTail}\n`);
+    }
   });
   state.localPort = localPort;
   state.activeProxy = proxy;
 
-  // Give the core a moment to bind the local port.
-  await waitForPort("127.0.0.1", localPort, 4000);
+  try {
+    await waitForPort("127.0.0.1", localPort, 8000);
+  } catch (err) {
+    stopCore();
+    throw new Error(
+      `${err.message}. Core log: ${stderrTail.trim() || "(no stderr)"}`,
+    );
+  }
 }
 
 function waitForPort(host, port, timeoutMs) {
