@@ -303,8 +303,8 @@ chrome.runtime.onMessage.addListener((msg: UiToBg, _sender, sendResponse) => {
   return true; // async response
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.action.setBadgeText({ text: "" });
+chrome.runtime.onInstalled.addListener(async () => {
+  await setBadge(null);
   chrome.alarms.create(HEALTH_ALARM, { periodInMinutes: HEALTH_PERIOD_MIN });
   chrome.alarms.create(SUB_ALARM, { periodInMinutes: SUB_CHECK_PERIOD_MIN });
 });
@@ -315,6 +315,9 @@ chrome.runtime.onStartup.addListener(async () => {
   if (state.activeProxyId) {
     const p = state.proxies.find((x) => x.id === state.activeProxyId);
     if (p) await applyProxy(state, p).catch(() => void 0);
+    else await setBadge(null);
+  } else {
+    await setBadge(null);
   }
 });
 
