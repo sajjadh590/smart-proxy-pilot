@@ -1,14 +1,18 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Gauge, Trash2 } from "lucide-react";
 import { AppState, Protocol } from "@/lib/types";
 import { rankProxies } from "@/lib/benchmark";
+import { sendToBackground } from "@/lib/messages";
+import { dedupeAllProxies } from "@/lib/storage";
 import { ProxyRow } from "../components/ProxyRow";
+import { Button } from "../components/ui";
 
 type Filter = "all" | "working" | "failed" | "favorites";
 
 export function Proxies({ state }: { state: AppState }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [busy, setBusy] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -37,6 +41,17 @@ export function Proxies({ state }: { state: AppState }) {
     { id: "favorites", label: "★" },
   ];
 
+  async function testAll() {
+    setBusy(true);
+    await sendToBackground({ type: "BENCHMARK_ALL" });
+    setBusy(false);
+  }
+
+  async function removeDuplicates() {
+    const n = await dedupeAllProxies();
+    alert(n ? `Removed ${n} duplicate proxies.` : "No duplicates found.");
+  }
+
   return (
     <div className="space-y-3">
       <div className="relative">
@@ -49,7 +64,7 @@ export function Proxies({ state }: { state: AppState }) {
         />
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         {filters.map((f) => (
           <button
             key={f.id}
@@ -63,6 +78,27 @@ export function Proxies({ state }: { state: AppState }) {
             {f.label}
           </button>
         ))}
+        <span className="ml-auto text-[10px] text-[--color-muted]">
+          {filtered.length} shown
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="primary"
+          className="flex items-center justify-center gap-1"
+          disabled={busy || state.proxies.length === 0}
+          onClick={testAll}
+        >
+          <Gauge size={13} /> {busy ? "Testing…" : "Test all"}
+        </Button>
+        <Button
+          className="flex items-center justify-center gap-1"
+          disabled={state.proxies.length === 0}
+          onClick={removeDuplicates}
+        >
+          <Trash2 size={13} /> Remove duplicates
+        </Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -80,5 +116,4 @@ export function Proxies({ state }: { state: AppState }) {
   );
 }
 
-// eslint helper to keep Protocol referenced type-safe in future extension.
 export type _P = Protocol;
