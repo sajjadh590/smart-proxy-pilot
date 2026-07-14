@@ -49,12 +49,26 @@ async function clearProxy(): Promise<void> {
 async function setBadge(proxy: Proxy | null): Promise<void> {
   if (!proxy) {
     await chrome.action.setBadgeText({ text: "" });
+    await chrome.action.setIcon({
+      path: {
+        16: "icons/icon16-off.png",
+        48: "icons/icon48-off.png",
+        128: "icons/icon128-off.png",
+      },
+    });
     return;
   }
   const color =
     proxy.healthScore >= 70 ? "#3fd68a" : proxy.healthScore >= 40 ? "#f6c453" : "#ff6b6b";
   await chrome.action.setBadgeBackgroundColor({ color });
   await chrome.action.setBadgeText({ text: "ON" });
+  await chrome.action.setIcon({
+    path: {
+      16: "icons/icon16.png",
+      48: "icons/icon48.png",
+      128: "icons/icon128.png",
+    },
+  });
 }
 
 async function activate(proxyId: string): Promise<BgResult> {
