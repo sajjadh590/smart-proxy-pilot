@@ -22,7 +22,7 @@ import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { buildCoreConfig, resolveCorePath } from "./core.js";
+import { buildCoreConfig, resolveCorePath, coreArgs } from "./core.js";
 
 const VERSION = "1.0.0";
 
