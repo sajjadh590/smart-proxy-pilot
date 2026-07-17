@@ -64,11 +64,14 @@ export function buildSingBoxConfig(proxy, localPort) {
     log: { level: "warn" },
     inbounds: [
       {
+        // NOTE: sing-box 1.13+ removed the legacy inbound fields `sniff` and
+        // `sniff_override_destination`. Do NOT re-add them here — presence of
+        // either causes a fatal "json: unknown field" decode error at startup.
+        // Sniffing is handled by the route rules in newer versions.
         type: "socks",
         tag: "socks-in",
         listen: "127.0.0.1",
         listen_port: localPort,
-        sniff: true,
       },
     ],
     outbounds: [
